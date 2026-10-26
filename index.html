@@ -57,6 +57,11 @@
         </div>
     </div>
 
+    <!-- Custom Alert Notification -->
+    <div id="customAlert" class="fixed top-4 right-4 z-[9999] bg-red-500 text-white px-6 py-3 rounded shadow-lg transition-opacity duration-300 opacity-0 pointer-events-none hidden">
+        <span id="customAlertMsg"></span>
+    </div>
+
     <!-- Global Floating Tooltip for Chutes -->
     <div id="globalTooltip" class="fixed z-[9999] pointer-events-none hidden opacity-0 w-max px-4 py-2.5 bg-gray-800 text-white text-xs rounded-lg shadow-xl border border-gray-700 transition-opacity duration-100">
         <!-- Content dynamically injected via JS -->
@@ -83,7 +88,7 @@
                 </button>
             </div>
             
-            <div class="grid grid-cols-2 lg:grid-cols-6 gap-4">
+            <div class="grid grid-cols-2 lg:grid-cols-7 gap-4">
                 <!-- Start Date -->
                 <div>
                     <label class="block text-xs text-gray-500 mb-1">Start Date</label>
@@ -146,6 +151,21 @@
                             <input type="checkbox" id="chk-all-bagtagid" checked class="pointer-events-none w-3.5 h-3.5 text-blue-600 rounded border-gray-300"> <span>All BAGTAGIDs</span>
                         </div>
                         <div id="bagtagid-list" class="overflow-y-auto max-h-48 sim-scroll bg-white"></div>
+                    </div>
+                </div>
+
+                <!-- Custom Dropdown: Notification Point -->
+                <div class="relative w-full custom-dropdown-container">
+                    <label class="block text-[0.65rem] font-semibold text-gray-500 uppercase mb-1">Notification Point</label>
+                    <div onclick="toggleDropdown('np-menu')" class="w-full border p-2 rounded text-xs bg-gray-50 cursor-pointer flex justify-between items-center font-semibold text-blue-700 hover:bg-gray-100 shadow-sm transition-all">
+                        <span id="np-text" class="truncate font-mono">All NPs</span>
+                        <svg class="w-4 h-4 text-gray-500 flex-shrink-0 ml-1" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"></path></svg>
+                    </div>
+                    <div id="np-menu" class="custom-menu absolute z-50 w-full bg-white border border-gray-300 rounded shadow-lg mt-1 hidden flex-col overflow-hidden text-xs">
+                        <div class="p-2 hover:bg-blue-50 cursor-pointer font-semibold border-b text-blue-600 flex items-center gap-2 bg-gray-50" onclick="toggleAllCb('np', 'NPs')">
+                            <input type="checkbox" id="chk-all-np" checked class="pointer-events-none w-3.5 h-3.5 text-blue-600 rounded border-gray-300"> <span>All NPs</span>
+                        </div>
+                        <div id="np-list" class="overflow-y-auto max-h-48 sim-scroll bg-white"></div>
                     </div>
                 </div>
                 
@@ -240,6 +260,10 @@
                         Data Table
                     </button>
                     
+                    <button id="npBtn" onclick="toggleNPView()" title="Show Notification Points" style="display:inline-flex;align-items:center;gap:4px;padding:4px 8px;border-radius:4px;border:1px solid var(--line);font-size:.65rem;font-weight:700;color:var(--text-sec);cursor:pointer;background:var(--bg);transition:all 0.2s;">
+                        NP
+                    </button>
+
                     <button id="overlayBtn" onclick="toggleOverlay()" title="Overlay Dates" style="display:inline-flex;align-items:center;gap:4px;padding:4px 8px;border-radius:4px;border:1px solid var(--line);font-size:.65rem;font-weight:700;color:var(--text-sec);cursor:pointer;background:var(--bg);transition:all 0.2s;">
                         Overlay
                     </button>
@@ -318,8 +342,25 @@
         let globalData = [];
         let currentDetailsData = []; 
         let isOverlayMode = false;
+        let isNPMode = false;
         let isDataTableVisible = false;
         let detailsDisplayLimit = 500;
+
+        function showCustomAlert(msg) {
+            const alertBox = document.getElementById('customAlert');
+            document.getElementById('customAlertMsg').innerText = msg;
+            alertBox.classList.remove('hidden');
+            setTimeout(() => {
+                alertBox.classList.remove('opacity-0');
+                alertBox.classList.add('opacity-100');
+            }, 10);
+            
+            setTimeout(() => {
+                alertBox.classList.remove('opacity-100');
+                alertBox.classList.add('opacity-0');
+                setTimeout(() => alertBox.classList.add('hidden'), 300);
+            }, 3000);
+        }
 
         // Custom HTML Tooltips fixing all scroll container clipping problems
         document.addEventListener('mouseover', function(e) {
@@ -479,8 +520,8 @@
             if(startInput.max) startInput.value = startInput.max;
             if(endInput.max) endInput.value = endInput.max;
 
-            ['flight', 'status', 'bagtagid', 'hours'].forEach(key => {
-                let title = key === 'flight' ? 'Flights' : (key === 'status' ? 'Statuses' : (key === 'bagtagid' ? 'BAGTAGIDs' : 'Times'));
+            ['flight', 'status', 'bagtagid', 'hours', 'np'].forEach(key => {
+                let title = key === 'flight' ? 'Flights' : (key === 'status' ? 'Statuses' : (key === 'bagtagid' ? 'BAGTAGIDs' : (key === 'np' ? 'NPs' : 'Times')));
                 document.getElementById(`chk-all-${key}`).checked = true;
                 document.querySelectorAll(`.${key}-cb`).forEach(cb => cb.checked = true);
                 updateDropdownText(key, title);
@@ -597,7 +638,7 @@
 
         function exportDetailsToExcel() {
             if (!currentDetailsData || currentDetailsData.length === 0) {
-                alert("No data available to export.");
+                showCustomAlert("No data available to export.");
                 return;
             }
 
@@ -623,11 +664,13 @@
             const btn = document.getElementById('saveJpegBtn');
             const overlayBtn = document.getElementById('overlayBtn');
             const dataTableBtn = document.getElementById('dataTableBtn');
+            const npBtn = document.getElementById('npBtn');
             const intervalContainer = document.getElementById('intervalContainer');
             
             btn.style.visibility = 'hidden';
             overlayBtn.style.visibility = 'hidden';
             dataTableBtn.style.visibility = 'hidden';
+            npBtn.style.visibility = 'hidden';
             intervalContainer.style.visibility = 'hidden';
             
             html2canvas(element, {
@@ -637,6 +680,7 @@
                 btn.style.visibility = 'visible';
                 overlayBtn.style.visibility = 'visible';
                 dataTableBtn.style.visibility = 'visible';
+                npBtn.style.visibility = 'visible';
                 intervalContainer.style.visibility = 'visible';
                 
                 const link = document.createElement('a');
@@ -646,10 +690,31 @@
             });
         }
 
+        function toggleNPView() {
+            isNPMode = !isNPMode;
+            if (isNPMode) isOverlayMode = false; // Mutually exclusive with overlay
+            
+            document.getElementById('npBtn').style.backgroundColor = isNPMode ? '#e0e7ff' : 'var(--bg)';
+            document.getElementById('npBtn').style.borderColor = isNPMode ? '#6366f1' : 'var(--line)';
+            document.getElementById('npBtn').style.color = isNPMode ? '#4338ca' : 'var(--text-sec)';
+            
+            document.getElementById('overlayBtn').style.backgroundColor = 'var(--bg)';
+            document.getElementById('overlayBtn').style.borderColor = 'var(--line)';
+            
+            applyFilters();
+        }
+
         function toggleOverlay() {
             isOverlayMode = !isOverlayMode;
+            if (isOverlayMode) isNPMode = false; // Mutually exclusive with NP
+            
             document.getElementById('overlayBtn').style.backgroundColor = isOverlayMode ? '#e0e7ff' : 'var(--bg)';
             document.getElementById('overlayBtn').style.borderColor = isOverlayMode ? '#6366f1' : 'var(--line)';
+            
+            document.getElementById('npBtn').style.backgroundColor = 'var(--bg)';
+            document.getElementById('npBtn').style.borderColor = 'var(--line)';
+            document.getElementById('npBtn').style.color = 'var(--text-sec)';
+            
             applyFilters();
         }
 
@@ -734,7 +799,7 @@
         }
 
         function populateFilters(baseRecords) {
-            const dates = new Set(), flights = new Set(), statuses = new Set(), bagtagids = new Set();
+            const dates = new Set(), flights = new Set(), statuses = new Set(), bagtagids = new Set(), nps = new Set();
             
             baseRecords.forEach(baseRow => {
                 let d = parseDateString(baseRow.EVENT);
@@ -743,6 +808,9 @@
                 if (baseRow._resolvedFlight && baseRow._resolvedFlight !== '-') flights.add(baseRow._resolvedFlight);
                 if(baseRow.BAGSTATUS) statuses.add(baseRow.BAGSTATUS);
                 if(baseRow.BAGTAGID) bagtagids.add(String(baseRow.BAGTAGID));
+
+                let tno = baseRow.TNO_NAME ? baseRow.TNO_NAME.trim() : 'UNKNOWN';
+                nps.add(tno);
             });
 
             const sortedDates = [...dates].sort();
@@ -764,6 +832,7 @@
             populateCustomDropdown('flight', flights, 'Flights');
             populateCustomDropdown('status', statuses, 'Statuses');
             populateCustomDropdown('bagtagid', bagtagids, 'BAGTAGIDs');
+            populateCustomDropdown('np', nps, 'NPs');
             
             const sortedHours = ["< 1 hour", "0 - 2 hours", "2 - 4 hours", "1 - 4 hours", "> 4 hours", "Negative", "nil STD"];
             populateCustomDropdown('hours', sortedHours, 'Times');
@@ -777,12 +846,14 @@
             const statusesF = getSelectedCustom('status');
             const bagtagidF = getSelectedCustom('bagtagid');
             const hoursF = getSelectedCustom('hours');
+            const npF = getSelectedCustom('np');
 
             // globalData represents EXACTLY 1 row per bag now.
             const filteredData = globalData.filter(baseRow => {
                 let rowDate = parseDateString(baseRow.EVENT);
                 const rowFlight = baseRow._resolvedFlight;
                 const rowBagTagId = String(baseRow.BAGTAGID);
+                const rowNP = baseRow.TNO_NAME ? baseRow.TNO_NAME.trim() : 'UNKNOWN';
 
                 const validDate = (!startD || rowDate >= startD) && (!endD || rowDate <= endD);
 
@@ -818,11 +889,11 @@
                        (flightsF.includes("ALL") || flightsF.includes(rowFlight)) &&
                        (statusesF.includes("ALL") || statusesF.includes(baseRow.BAGSTATUS)) &&
                        (bagtagidF.includes("ALL") || bagtagidF.includes(rowBagTagId)) &&
+                       (npF.includes("ALL") || npF.includes(rowNP)) &&
                        matchHours;
             });
 
             let statusText = document.getElementById('status-text').innerText;
-            // Updated to use normal casing instead of toUpperCase()
             document.getElementById('detailsHeaderTitle').innerHTML = `NP Details: <span class="text-blue-600">${statusText}</span>`;
 
             // Since filteredData is precisely 1 unique event per bag, they all receive identical datasets to match perfectly.
@@ -1088,6 +1159,27 @@
                     
                     traces.push(generateTrace(dateData, baseInterval, traceName, colorObj.line, colorObj.fill, true));
                 });
+            } else if (isNPMode) {
+                layout.xaxis.tickformat = ''; 
+                layout.xaxis.hoverformat = '%d/%m %H:%M'; 
+                
+                let uniqueNPs = [...new Set(data.map(d => d.TNO_NAME ? d.TNO_NAME.trim() : 'UNKNOWN'))].sort();
+                const colors = [
+                    {line: '#3b82f6', fill: 'rgba(59, 130, 246, 0.10)'},
+                    {line: '#10b981', fill: 'rgba(16, 185, 129, 0.10)'},
+                    {line: '#f59e0b', fill: 'rgba(245, 158, 11, 0.10)'},
+                    {line: '#8b5cf6', fill: 'rgba(139, 92, 246, 0.10)'},
+                    {line: '#ef4444', fill: 'rgba(239, 68, 68, 0.10)'},
+                    {line: '#06b6d4', fill: 'rgba(6, 182, 212, 0.10)'},
+                    {line: '#ec4899', fill: 'rgba(236, 72, 153, 0.10)'}
+                ];
+
+                uniqueNPs.forEach((npStr, idx) => {
+                    let npData = data.filter(d => (d.TNO_NAME ? d.TNO_NAME.trim() : 'UNKNOWN') === npStr);
+                    let colorObj = colors[idx % colors.length];
+                    
+                    traces.push(generateTrace(npData, baseInterval, npStr, colorObj.line, colorObj.fill, false));
+                });
             } else {
                 layout.xaxis.tickformat = ''; 
                 layout.xaxis.hoverformat = '%d/%m %H:%M'; 
@@ -1128,6 +1220,12 @@
                     else level = 3;
                 } else {
                     level = 2; 
+                }
+
+                if (isOverlayMode || isNPMode) {
+                    if (level === 1) return 'bg-indigo-100 text-indigo-800 font-bold';
+                    if (level === 2) return 'bg-indigo-300 text-indigo-900 font-bold';
+                    if (level === 3) return 'bg-indigo-600 text-white font-bold';
                 }
 
                 if (traceName.includes('> 4 hours')) {
@@ -1177,8 +1275,12 @@
             let uniqueDates = new Set(sortedX.map(x => x.split(' ')[0]));
             let showDate = uniqueDates.size > 1;
 
+            let headerText = 'Hours Before STD';
+            if (isOverlayMode) headerText = 'Date';
+            else if (isNPMode) headerText = 'Notification Point';
+
             let theadHtml = `<tr>
-                <th class="sticky top-0 left-0 z-30 bg-gray-100 px-3 py-2 text-xs font-bold text-gray-700 uppercase tracking-wider border-b border-gray-200 shadow-[1px_0_0_0_#e5e7eb] whitespace-nowrap">${isOverlayMode ? 'Date' : 'Hours Before STD'}</th>`;
+                <th class="sticky top-0 left-0 z-30 bg-gray-100 px-3 py-2 text-xs font-bold text-gray-700 uppercase tracking-wider border-b border-gray-200 shadow-[1px_0_0_0_#e5e7eb] whitespace-nowrap">${headerText}</th>`;
             
             sortedX.forEach(xVal => {
                 let displayTime = xVal;
