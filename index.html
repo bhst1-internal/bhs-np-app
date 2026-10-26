@@ -666,6 +666,7 @@
             const dataTableBtn = document.getElementById('dataTableBtn');
             const npBtn = document.getElementById('npBtn');
             const intervalContainer = document.getElementById('intervalContainer');
+            const scrollContainer = document.getElementById('timelineTableScroll');
             
             btn.style.visibility = 'hidden';
             overlayBtn.style.visibility = 'hidden';
@@ -673,21 +674,59 @@
             npBtn.style.visibility = 'hidden';
             intervalContainer.style.visibility = 'hidden';
             
-            html2canvas(element, {
-                backgroundColor: '#ffffff',
-                scale: 2
-            }).then(canvas => {
-                btn.style.visibility = 'visible';
-                overlayBtn.style.visibility = 'visible';
-                dataTableBtn.style.visibility = 'visible';
-                npBtn.style.visibility = 'visible';
-                intervalContainer.style.visibility = 'visible';
-                
-                const link = document.createElement('a');
-                link.download = 'NP_Timeline_Section.jpg';
-                link.href = canvas.toDataURL('image/jpeg', 0.9);
-                link.click();
-            });
+            // Save original styles
+            const origWidth = element.style.width;
+            const origMaxWidth = element.style.maxWidth;
+            const origOverflowX = scrollContainer.style.overflowX;
+            const origOverflowY = scrollContainer.style.overflowY;
+            const origMaxHeight = scrollContainer.style.maxHeight;
+
+            // Expand for capture
+            let targetWidth = Math.max(element.offsetWidth, scrollContainer.scrollWidth + 60);
+            element.style.width = targetWidth + 'px';
+            element.style.maxWidth = 'none';
+            scrollContainer.style.overflowX = 'visible';
+            scrollContainer.style.overflowY = 'visible';
+            scrollContainer.style.maxHeight = 'none';
+            
+            setTimeout(() => {
+                html2canvas(element, {
+                    backgroundColor: '#ffffff',
+                    scale: 2,
+                    windowWidth: targetWidth
+                }).then(canvas => {
+                    // Restore original styles
+                    element.style.width = origWidth;
+                    element.style.maxWidth = origMaxWidth;
+                    scrollContainer.style.overflowX = origOverflowX;
+                    scrollContainer.style.overflowY = origOverflowY;
+                    scrollContainer.style.maxHeight = origMaxHeight;
+
+                    btn.style.visibility = 'visible';
+                    overlayBtn.style.visibility = 'visible';
+                    dataTableBtn.style.visibility = 'visible';
+                    npBtn.style.visibility = 'visible';
+                    intervalContainer.style.visibility = 'visible';
+                    
+                    const link = document.createElement('a');
+                    link.download = 'NP_Timeline_Section.jpg';
+                    link.href = canvas.toDataURL('image/jpeg', 0.9);
+                    link.click();
+                }).catch(err => {
+                    console.error("Error capturing JPEG:", err);
+                    element.style.width = origWidth;
+                    element.style.maxWidth = origMaxWidth;
+                    scrollContainer.style.overflowX = origOverflowX;
+                    scrollContainer.style.overflowY = origOverflowY;
+                    scrollContainer.style.maxHeight = origMaxHeight;
+                    
+                    btn.style.visibility = 'visible';
+                    overlayBtn.style.visibility = 'visible';
+                    dataTableBtn.style.visibility = 'visible';
+                    npBtn.style.visibility = 'visible';
+                    intervalContainer.style.visibility = 'visible';
+                });
+            }, 100);
         }
 
         function toggleNPView() {
@@ -1323,7 +1362,7 @@
                 theadHtml += `<th class="sticky top-0 z-20 bg-gray-50 px-2 py-2 text-[0.65rem] font-bold text-gray-500 uppercase tracking-wider border-b border-gray-200 text-center align-middle w-12 min-w-[3rem] leading-tight">${displayTime}</th>`;
             });
             
-            theadHtml += `<th class="sticky top-0 right-0 z-30 bg-gray-100 px-3 py-2 text-xs font-extrabold text-gray-700 uppercase tracking-wider border-b border-gray-200 shadow-[-1px_0_0_0_#e5e7eb] text-center whitespace-nowrap w-24">Total Bags</th></tr>`;
+            theadHtml += `<th class="sticky top-0 right-0 z-30 bg-gray-100 px-3 py-2 text-xs font-extrabold text-gray-700 uppercase tracking-wider border-b border-gray-200 shadow-[-1px_0_0_0_#e5e7eb] text-center whitespace-nowrap w-20">TOTAL</th></tr>`;
 
             let tbodyHtml = '';
             let columnTotals = new Array(sortedX.length).fill(0);
@@ -1353,7 +1392,7 @@
                     <tr class="transition-colors group">
                         <td class="sticky left-0 z-10 bg-white group-hover:bg-blue-50 px-3 py-1.5 text-xs font-bold border-b border-gray-100 shadow-[1px_0_0_0_#f3f4f6] whitespace-nowrap" style="color: ${trace.line.color}">${trace.name}</td>
                         ${cellsHtml}
-                        <td class="sticky right-0 z-10 bg-gray-50 group-hover:bg-blue-50 px-3 py-1.5 text-xs font-bold font-mono text-gray-900 border-b border-gray-100 shadow-[-1px_0_0_0_#f3f4f6] text-center w-24">${rowTotal}</td>
+                        <td class="sticky right-0 z-10 bg-gray-50 group-hover:bg-blue-50 px-3 py-1.5 text-xs font-bold font-mono text-gray-900 border-b border-gray-100 shadow-[-1px_0_0_0_#f3f4f6] text-center w-20">${rowTotal}</td>
                     </tr>
                 `;
             });
@@ -1368,7 +1407,7 @@
                 <tr class="bg-gray-50">
                     <td class="sticky left-0 z-10 bg-gray-100 px-3 py-2 text-xs font-extrabold text-gray-700 uppercase tracking-wider border-t-2 border-gray-200 shadow-[1px_0_0_0_#e5e7eb] whitespace-nowrap">Total</td>
                     ${colTotalsHtml}
-                    <td class="sticky right-0 z-10 bg-gray-200 px-3 py-2 text-xs font-extrabold font-mono text-gray-900 border-t-2 border-gray-200 shadow-[-1px_0_0_0_#d1d5db] text-center w-24">${grandTotal}</td>
+                    <td class="sticky right-0 z-10 bg-gray-200 px-3 py-2 text-xs font-extrabold font-mono text-gray-900 border-t-2 border-gray-200 shadow-[-1px_0_0_0_#d1d5db] text-center w-20">${grandTotal}</td>
                 </tr>
             `;
 
